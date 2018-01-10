@@ -11,12 +11,15 @@ import (
 	"strings"
 )
 
+// Mutex it
 type Folder struct {
 	path     string
 	contents map[string]os.FileInfo
 }
 
 // Get initial folder contents from file system
+// Might be nice to have a mechanism that would just go ahead and refresh if
+// Many update/remove events are queued.
 func (f *Folder) Refresh() {
 	files, err := ioutil.ReadDir(f.path)
 	if err != nil {
@@ -29,7 +32,8 @@ func (f *Folder) Refresh() {
 	}
 }
 
-//takes an absolute path to file and stats it
+// Takes an absolute path to file and stats it
+// Also functions as an add function
 func (f *Folder) Update(path string) {
 	file, err := os.Stat(path)
 
@@ -46,16 +50,25 @@ func (f *Folder) Remove(path string) {
 }
 
 func (f *Folder) Print() {
-	f.GetSortedFileList()
+	fmt.Print("files: ")
+	for _, file := range f.GetSortedFileList() {
+		fmt.Print(file, " ")
+	}
+	fmt.Print("\n")
 }
 
+//Map is unsorted, which is not as fun.
+//Would need other sorting mechanisms, probably just keep this away from the actual folder object.
+//not very efficient doing this every time?
 func (f *Folder) GetSortedFileList() []string {
 	list := make([]string, 0, len(f.contents))
 
 	index := 0
 
+	//https://gist.github.com/zhum/57cb45d8bbea86d87490
 	for name := range f.contents {
 		index = sort.Search(len(list), func(i int) bool {
+			//behave more like ls
 			if strings.ToLower(list[i]) == strings.ToLower(name) {
 				return list[i] < name
 			} else {
@@ -67,16 +80,8 @@ func (f *Folder) GetSortedFileList() []string {
 		list[index] = name
 	}
 
-	fmt.Print("files: ")
-	for _, file := range list {
-		fmt.Print(file, " ")
-	}
-	fmt.Print("\n")
-
 	return list
 }
-
-//func watchFolder(f *Folder) {
 
 func main() {
 
@@ -113,6 +118,7 @@ func main() {
 				}
 
 				pwd.Print()
+				fmt.Println(event)
 
 				/*
 					fmt.Println("event:", event)
