@@ -10,7 +10,8 @@ import (
 type Folder interface {
 	Path() string
 	Contents() map[string]os.FileInfo
-	Watch(hasUpdated chan bool) //ping channel if folder contents changed
+	Watch() chan bool // ping channel if folder contents changed
+	Close()           // get rid of a folder's watcher
 }
 
 // should add closing channels and stuff

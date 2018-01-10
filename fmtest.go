@@ -9,7 +9,6 @@ import (
 )
 
 func PrintFolder(f Folder) {
-	fmt.Print("files: ")
 	for _, file := range GetSortedFileList(f) {
 		fmt.Print(file, " ")
 	}
@@ -43,18 +42,25 @@ func GetSortedFileList(f Folder) []string {
 }
 
 func main() {
-	var f Folder = fs.GetFolder(os.Args[1])
+	for _, path := range os.Args[1:] {
+		fmt.Println(path)
+		var f Folder = fs.GetFolder(path)
 
-	update := make(chan bool)
-	go f.Watch(update)
+		update := f.Watch()
 
-	for {
-		select {
-		case <-update:
-			PrintFolder(f)
+	Loop:
+		for {
+			select {
+			case <-update:
+				PrintFolder(f)
+				for file := range f.Contents() {
+					if file == "close" {
+						f.Close()
+						break Loop
+					}
+				}
+			}
 		}
+		fmt.Println("we are done here")
 	}
-
-	done := make(chan bool)
-	<-done
 }
