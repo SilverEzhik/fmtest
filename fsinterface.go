@@ -5,6 +5,75 @@ import (
 	//"time"
 )
 
+// Define an interface for file system operations that'd be nice to support.
+// The way I see it, there are two types of operations in a File Manager:
+// - FS-specific
+//     Operations that involve actually interacting with the file system, such
+//     as copying and so on.
+// - "meta" operations
+//	   Operations composed of these FS-specific operations, such as Undo/Redo.
+//	   For example: Inverse of move is move. Inverse of copy is trash.
+//     These are handled on the FM side, and so don't need to be defined per-FS.
+
+type FileSystem interface {
+	// navigation tools
+	GetFolder(path string) Folder
+	GetFileInfo(path string) os.FileInfo
+
+	// Copying multiple files is treated as a single operation by a FM user.
+	// Doing it this way allows us to hand off the entire operation to the FS
+	// instead of having the FM micromanage it. This also allows things like
+	// the FS layer doing these operations in a separate process, for example.
+	// This does come with the implication that conflict resolution
+	// (e.g. identical file names) should take place before the operation.
+	// Which is honestly how it should be to begin with.
+
+	// With cp/mv operations, take in the source-destination map, and just go
+	// ahead and complete the whole operation.
+	Copy(files map[string]string) (<-chan IOStatus, chan<- OPStatus, error)
+	Move(files map[string]string) (<-chan IOStatus, chan<- OPStatus, error)
+	// With trashing operations, take in an array of paths to be trashed.
+	Trash(filename []string) (<-chan IOStatus, chan<- OPStatus, error)  // Move to FS trash folder
+	Delete(filename []string) (<-chan IOStatus, chan<- OPStatus, error) // Erase files for good
+
+	Mkdir(name string) error
+
+	// Above operations are for FS management.
+	// Open and preview operations should also be done here.
+	// For remote FS this'd allow fetching remote thumbnails (as opposed to whole file)
+	// Or things like opening remote files by downloading to tmp and watching changes
+	// Preview mechanisms are not defined yet, neither are mechanisms for opening files.
+	// xdg-open is stupid and doesn't support multiple arguments.
+	// xdg-mime can tell the defaults, so can handle this on FM level on Linux.
+
+	// Some sort of functions would also need to exist to move files across filesystems.
+}
+
+// For progress tracking
+type IOStatus struct {
+	CurrentFile  string            // get path of file currently worked on
+	FileProgress int               // progress of this individual file %
+	Progress     int               // total progress %
+	Results      map[string]string // get paths of whatever files emerged as a result of completing the operation
+	Status       OPStatus          // current status of the operation
+	Error        error
+}
+
+// Knowing currently copied file allows more granular progress reporting and displaying it in the FM.
+// Knowing files created as result of an operation allows for undoing it.
+
+// For interacting with ongoing operation
+type OPStatus int
+
+const (
+	Resume OPStatus = iota
+	Pause
+	Cancel
+	Fail
+)
+
+// conflict resolution falls to the FM.
+
 // for FM use, folders are more "interesting" until we get to actually changing the file system
 type Folder interface {
 	Path() string
