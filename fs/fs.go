@@ -12,11 +12,10 @@ import (
 
 // Mutex this
 type folder struct {
-	path       string
-	contents   map[string]os.FileInfo
-	watcher    chan bool
-	done       chan struct{}
-	changePath chan bool
+	path     string
+	contents map[string]os.FileInfo
+	watcher  chan bool
+	done     chan struct{}
 }
 
 //get the folder struct
