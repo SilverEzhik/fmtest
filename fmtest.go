@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 )
 
 func PrintFolder(f Folder) {
@@ -44,7 +45,11 @@ func GetSortedFileList(f Folder) []string {
 func main() {
 	for _, path := range os.Args[1:] {
 		fmt.Println(path)
-		var f Folder = fs.GetFolder(path)
+		f, err := fs.GetFolder(path)
+		if err != nil {
+			fmt.Println("error:", err)
+			return
+		}
 
 		update := f.Watch()
 
@@ -52,7 +57,12 @@ func main() {
 		for {
 			select {
 			case <-update:
+				if f.Path() == "" && f.Contents() == nil {
+					fmt.Println("folder object gone")
+					break Loop
+				}
 				PrintFolder(f)
+				//weird mechanism for testing this
 				for file := range f.Contents() {
 					if file == "close" {
 						f.Close()
@@ -61,6 +71,7 @@ func main() {
 				}
 			}
 		}
+		time.Sleep(5 * time.Second) //observe cleanup
 		fmt.Println("we are done here")
 	}
 }
