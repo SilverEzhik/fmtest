@@ -1,4 +1,4 @@
-package main
+package fm
 
 import (
 	"os"
@@ -21,6 +21,9 @@ type FileSystem interface {
 	GetFileInfo(path string) os.FileInfo
 	// Only bother with basic features that FileInfo gives
 	// (name/size/last modify date/permissions)
+	// May also want to provide some sort of a "preferred order" mechanism
+	// For example, it'd be useful for sorting notes if some note app implements
+	// its notebook format as a filesystem.
 	// Things like comments and labels could be provided on FM level.
 	// Though, at the same time, they could also be provided on FS level, in
 	// that case would need to define a new interface for files.
@@ -129,6 +132,6 @@ type Folder interface {
 // if name == "" and contents == nil, this folder object is invalid (is this the go way? idk lol)
 
 // The idea would be to have this exist as an interface so that other fun stuff like
-// virtual file systems and network can be added
+// virtual file systems and network fs can be added
 
 // so if any of these get called on the UI thread I'll get sad.
