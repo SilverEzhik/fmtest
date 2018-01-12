@@ -1,0 +1,17 @@
+body {
+    margin: 0
+}
+#miller-container {
+    display: flex;
+}
+.miller-column {
+    min-width: 200px;
+    width: 200px;
+}
+.miller-column:nth-child(odd) {
+    background-color: #f0f0f0;
+}
+
+.item-active {
+    font-weight: bold;
+}
