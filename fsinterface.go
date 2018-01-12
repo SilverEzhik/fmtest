@@ -118,6 +118,10 @@ const (
 type Folder interface {
 	Path() string
 	Contents() map[string]os.FileInfo
+	// Contents is a map so that it's possible to quickly add/remove content based on filename
+	// This does, however, mean that you can't have multiple files with the same name in one folder.
+	// A different mechanism may be good to have here, however, issue can be dealt with by always calling
+	// FileInfo.Name() instead of using the map filename string.
 	Watch() chan bool // ping channel if folder contents changed
 	Close()           // get rid of a folder's watcher
 }
