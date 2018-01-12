@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type folder struct {
 	contents map[string]os.FileInfo
 	watcher  chan bool
 	done     chan struct{}
+	uid      uint64
 }
 
 //get the folder struct
@@ -78,6 +80,7 @@ func (f *folder) fsWatcher() {
 
 	folderRenamed := false
 	timeout := false
+
 	for {
 		select {
 		case event := <-watcher.Events:
@@ -110,15 +113,8 @@ func (f *folder) fsWatcher() {
 					}
 				}()
 			} else if folderRenamed == true && event.Op == fsnotify.Create {
-				//get new folder info
-				newF, err := os.Stat(event.Name)
-				if err != nil {
-					fmt.Println("error:", err)
-					return
-				}
-				//no proper way to check if this is actually the folder we were in
-				//so this is the best that can be done
-				if newF.IsDir() == false {
+				//compare folder uids
+				if f.uid != getPathUID(event.Name) {
 					f.cleanup()
 					continue
 				}
@@ -166,6 +162,9 @@ func (f *folder) fsWatcher() {
 }
 
 func (f *folder) cleanup() {
+	if f.path == "" && f.contents == nil {
+		return
+	}
 	f.path = ""
 	f.contents = nil
 	f.Close()
@@ -187,6 +186,21 @@ func (f *folder) Refresh() {
 		f.contents[file.Name()] = file
 		//fmt.Println(file.Name())
 	}
+
+	f.uid = getPathUID(f.path)
+}
+
+//unix only
+//figure out a drop-in uid function for other os?
+func getPathUID(path string) uint64 {
+	fileinfo, _ := os.Stat(path)
+	stat, ok := fileinfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		// 0 in inodes indicates an error, so...
+		return 0
+	}
+
+	return stat.Ino
 }
 
 // Takes an absolute path to file and stats it
