@@ -18,11 +18,19 @@ import (
 type folder struct {
 	path     string
 	contents map[string]os.FileInfo
-	mutex    sync.Mutex
-	watcher  chan bool
+	m        sync.Mutex
+	watchers []chan bool
 	done     chan struct{}
 	uid      uint64
+	count    uint64
 }
+
+type mutexFolders struct {
+	f map[string]*folder
+	m sync.Mutex
+}
+
+var folders mutexFolders = mutexFolders{f: make(map[string]*folder)}
 
 //get the folder struct
 func GetFolder(path string) (*folder, error) {
@@ -30,13 +38,24 @@ func GetFolder(path string) (*folder, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := &folder{path: absPath}
-	f.Refresh()
-	f.done = make(chan struct{})
-	f.watcher = make(chan bool)
-	go f.fsWatcher()
+	folders.m.Lock()
+	defer folders.m.Unlock()
 
-	return f, nil
+	if f, ok := folders.f[absPath]; ok {
+		fmt.Println("already watched")
+		return f, nil
+	} else {
+		f := &folder{path: absPath}
+		f.Refresh()
+		f.done = make(chan struct{})
+		//f.watchers = make([]chan bool)
+		go f.fsWatcher()
+
+		folders.f[absPath] = f
+
+		return f, nil
+	}
+
 }
 
 // Get folder path
@@ -51,11 +70,34 @@ func (f *folder) Contents() map[string]os.FileInfo {
 
 // Get channel for notifications on changes to the folder
 func (f *folder) Watch() chan bool {
-	return f.watcher
+	w := make(chan bool)
+	f.watchers = append(f.watchers, w)
+	f.count++
+	return w
 }
 
 func (f *folder) Close() {
-	close(f.done)
+	fmt.Println(f.count)
+	if f.count <= 1 {
+		fmt.Println("close")
+		close(f.done)
+		folders.m.Lock()
+		delete(folders.f, f.path)
+		folders.m.Unlock()
+	} else {
+		f.count--
+	}
+}
+
+func (f *folder) notifyWatchers() {
+	for _, w := range f.watchers {
+		w <- true
+	}
+}
+func (f *folder) closeWatchers() {
+	for _, w := range f.watchers {
+		close(w)
+	}
 }
 
 func (f *folder) fsWatcher() {
@@ -66,7 +108,7 @@ func (f *folder) fsWatcher() {
 	}
 
 	defer watcher.Close()
-	defer close(f.watcher)
+	defer f.closeWatchers()
 
 	err = watcher.Add(f.path)
 	if err != nil {
@@ -104,7 +146,7 @@ func (f *folder) fsWatcher() {
 				case fsnotify.Remove:
 					f.removeItem(event.Name)
 				}
-				f.watcher <- true
+				f.notifyWatchers()
 			} else if event.Name == f.path && event.Op == fsnotify.Rename {
 				folderRenamed = true
 
@@ -137,6 +179,12 @@ func (f *folder) fsWatcher() {
 					return
 				}
 
+				// move folder to the new path in the map
+				folders.m.Lock()
+				delete(folders.f, f.path)
+				folders.f[absPath] = f
+				folders.m.Unlock()
+
 				f.path = absPath
 				f.Refresh()
 				//start watching new path
@@ -149,7 +197,7 @@ func (f *folder) fsWatcher() {
 				folderRenamed = false
 			}
 
-			fmt.Println(f.path, "(w) -", event.Name, event.Op)
+			//fmt.Println(f.path, "(w) -", event.Name, event.Op)
 		case err := <-watcher.Errors:
 			fmt.Println("error:", err)
 		case <-f.done:
@@ -172,8 +220,8 @@ func (f *folder) cleanup() {
 // Might be nice to have a mechanism that would just go ahead and refresh if
 // many update/remove events are queued.
 func (f *folder) Refresh() {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
+	f.m.Lock()
+	defer f.m.Unlock()
 	// replace the map
 	f.contents = make(map[string]os.FileInfo)
 
@@ -206,8 +254,8 @@ func getPathUID(path string) uint64 {
 // Takes an absolute path to file and stats it
 // Also functions as an add function
 func (f *folder) updateItem(path string) {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
+	f.m.Lock()
+	defer f.m.Unlock()
 	file, err := os.Stat(path)
 
 	if err != nil {
@@ -219,8 +267,8 @@ func (f *folder) updateItem(path string) {
 }
 
 func (f *folder) removeItem(path string) {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
+	f.m.Lock()
+	defer f.m.Unlock()
 	delete(f.contents, filepath.Base(path))
 }
 

@@ -5,10 +5,15 @@ import (
 	"./fs"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 )
 
+var printLock sync.Mutex
+
 func PrintFolder(f fm.Folder) {
+	printLock.Lock()
+	defer printLock.Unlock()
 	for _, file := range fm.GetSortedFileList(f) {
 		fmt.Print(file, " ")
 	}
@@ -16,39 +21,46 @@ func PrintFolder(f fm.Folder) {
 }
 
 func main() {
-	watchFolder()
+	/*
+		for i := 0; i < 1000; i++ {
+			go watchFolder(os.Args[1])
+		}
+	*/
+
+	watchFolder(os.Args[1])
+
+	fmt.Println("no folders")
+	time.Sleep(5 * time.Second) //observe cleanup
+	fmt.Println("we are done here")
 }
 
-func watchFolder() {
-	for _, path := range os.Args[1:] {
-		fmt.Println(path)
-		f, err := fs.GetFolder(path)
-		if err != nil {
-			fmt.Println("error:", err)
-			return
-		}
+func watchFolder(path string) {
+	fmt.Println(path)
+	f, err := fs.GetFolder(path)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 
-		update := f.Watch()
+	update := f.Watch()
 
-	Loop:
-		for {
-			select {
-			case <-update:
-				if f.Path() == "" && f.Contents() == nil {
-					fmt.Println("folder object gone")
+Loop:
+	for {
+		select {
+		case <-update:
+			if f.Path() == "" && f.Contents() == nil {
+				fmt.Println("folder object gone")
+				break Loop
+			}
+			PrintFolder(f)
+
+			//weird mechanism for testing this
+			for file := range f.Contents() {
+				if file == "close" {
+					f.Close()
 					break Loop
-				}
-				PrintFolder(f)
-				//weird mechanism for testing this
-				for file := range f.Contents() {
-					if file == "close" {
-						f.Close()
-						break Loop
-					}
 				}
 			}
 		}
-		time.Sleep(5 * time.Second) //observe cleanup
-		fmt.Println("we are done here")
 	}
 }
