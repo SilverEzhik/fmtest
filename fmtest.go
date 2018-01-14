@@ -16,6 +16,10 @@ func PrintFolder(f fm.Folder) {
 }
 
 func main() {
+	watchFolder()
+}
+
+func watchFolder() {
 	for _, path := range os.Args[1:] {
 		fmt.Println(path)
 		f, err := fs.GetFolder(path)

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -14,10 +15,10 @@ import (
 // something to think about: see if it's possible to have some structure here that could help avoid
 // creating multiple watchers for a single folder
 
-// Mutex this
 type folder struct {
 	path     string
 	contents map[string]os.FileInfo
+	mutex    sync.Mutex
 	watcher  chan bool
 	done     chan struct{}
 	uid      uint64
@@ -171,6 +172,8 @@ func (f *folder) cleanup() {
 // Might be nice to have a mechanism that would just go ahead and refresh if
 // many update/remove events are queued.
 func (f *folder) Refresh() {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 	// replace the map
 	f.contents = make(map[string]os.FileInfo)
 
@@ -203,6 +206,8 @@ func getPathUID(path string) uint64 {
 // Takes an absolute path to file and stats it
 // Also functions as an add function
 func (f *folder) updateItem(path string) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 	file, err := os.Stat(path)
 
 	if err != nil {
@@ -214,6 +219,8 @@ func (f *folder) updateItem(path string) {
 }
 
 func (f *folder) removeItem(path string) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
 	delete(f.contents, filepath.Base(path))
 }
 
