@@ -47,6 +47,19 @@
     socket.onMessage(function(data) {
         console.log("onMessage: " + data);
 
+        if (data == "Folder update") {
+            // https://zeit.co/blog/async-and-await
+            function sleep (time) {
+              return new Promise((resolve) => setTimeout(resolve, time));
+            }
+
+            // Usage!
+            sleep(500).then(() => {
+                location.reload()
+                // Do something after the sleep!
+            })
+        }
+
         // Echo the message back to the server.
         //socket.send("echo: " + data);
     });

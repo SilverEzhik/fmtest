@@ -1,8 +1,8 @@
 package main
 
 import (
-	//"./fm"
-	//"./fs"
+	"./fm"
+	"./fs"
 	//"encoding/json"
 	"fmt"
 	"github.com/desertbit/glue"
@@ -29,6 +29,44 @@ func getDir(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(path)
 }
 
+func watchFolder(path string) {
+	fmt.Println(path)
+
+	var f fm.Folder
+	f, err := fs.GetFolder(path)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	update := f.Watch()
+
+Loop:
+	for {
+		select {
+		case <-update:
+			if f.Path() == "" && f.Contents() == nil {
+				fmt.Println("folder object gone")
+				break Loop
+			}
+
+			for _, socket := range server.Sockets() {
+				socket.Write("Folder update")
+			}
+
+			//weird mechanism for testing this
+			for file := range f.Contents() {
+				if file == "close" {
+					f.Close()
+					break Loop
+				}
+			}
+		}
+	}
+}
+
+var server *glue.Server
+
 // main function to boot up everything
 func main() {
 	router := mux.NewRouter()
@@ -38,7 +76,7 @@ func main() {
 
 	//notify api
 	// Create a new glue server.
-	server := glue.NewServer(glue.Options{
+	server = glue.NewServer(glue.Options{
 		HTTPListenAddress: ":8080",
 		HTTPSocketType:    glue.HTTPSocketTypeNone,
 		HTTPHandleURL:     "/channel/",
@@ -61,6 +99,8 @@ func main() {
 	staticFileDirectory := http.Dir("./millertoy_html/")
 	staticFileHandler := http.StripPrefix("/", http.FileServer(staticFileDirectory))
 	router.PathPrefix("/").Handler(staticFileHandler).Methods("GET")
+	//check static updates
+	go watchFolder("./millertoy_html")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
