@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// something to think about: see if it's possible to have some structure here that could help avoid
+// creating multiple watchers for a single folder
+
 // Mutex this
 type folder struct {
 	path     string
@@ -79,7 +82,6 @@ func (f *folder) fsWatcher() {
 	}
 
 	folderRenamed := false
-	timeout := false
 
 	for {
 		select {
@@ -109,7 +111,8 @@ func (f *folder) fsWatcher() {
 				go func() {
 					time.Sleep(10 * time.Millisecond)
 					if folderRenamed == true {
-						timeout = true
+						fmt.Println("folder gone")
+						f.cleanup()
 					}
 				}()
 			} else if folderRenamed == true && event.Op == fsnotify.Create {
@@ -151,12 +154,6 @@ func (f *folder) fsWatcher() {
 		case <-f.done:
 			fmt.Println("watcher over")
 			return
-		default:
-			// folder gone
-			if folderRenamed && timeout {
-				fmt.Println("folder gone")
-				f.cleanup()
-			}
 		}
 	}
 }
