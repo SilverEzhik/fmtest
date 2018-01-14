@@ -8,5 +8,80 @@
     <div id="miller-container">
     </div>
 </body>
+<script src="glue.js"></script>
 <script src="script.js"></script>
+<script>
+    var host = "http://localhost:8080";
+
+    var opts = {
+        // The base URL is appended to the host string. This value has to match with the server value.
+        baseURL: "/channel/",
+
+        // Force a socket type.
+        // Values: false, "WebSocket", "AjaxSocket"
+        forceSocketType: false,
+
+        // Kill the connect attempt after the timeout.
+        connectTimeout:  10000,
+
+        // If the connection is idle, ping the server to check if the connection is stil alive.
+        pingInterval:           35000,
+        // Reconnect if the server did not response with a pong within the timeout.
+        pingReconnectTimeout:   5000,
+
+        // Whenever to automatically reconnect if the connection was lost.
+        reconnect:          true,
+        reconnectDelay:     1000,
+        reconnectDelayMax:  5000,
+        // To disable set to 0 (endless).
+        reconnectAttempts:  10,
+
+        // Reset the send buffer after the timeout.
+        resetSendBufferTimeout: 10000
+    };
+
+    // Create and connect to the server.
+    // Optional pass a host string and options.
+    var socket = glue(host, opts);
+
+    socket.onMessage(function(data) {
+        console.log("onMessage: " + data);
+
+        // Echo the message back to the server.
+        //socket.send("echo: " + data);
+    });
+
+
+    socket.on("connected", function() {
+        console.log("connected");
+    });
+
+    socket.on("connecting", function() {
+        console.log("connecting");
+    });
+
+    socket.on("disconnected", function() {
+        console.log("disconnected");
+    });
+
+    socket.on("reconnecting", function() {
+        console.log("reconnecting");
+    });
+
+    socket.on("error", function(e, msg) {
+        console.log("error: " + msg);
+    });
+
+    socket.on("connect_timeout", function() {
+        console.log("connect_timeout");
+    });
+
+    socket.on("timeout", function() {
+        console.log("timeout");
+    });
+
+    socket.on("discard_send_buffer", function() {
+        console.log("some data could not be send and was discarded.");
+    });
+</script>
 </html>

@@ -49,7 +49,6 @@ func GetFolder(path string) (*folder, error) {
 		f.Refresh()
 		f.done = make(chan struct{})
 		//f.watchers = make([]chan bool)
-		go f.fsWatcher()
 
 		folders.f[absPath] = f
 
@@ -70,6 +69,11 @@ func (f *folder) Contents() map[string]os.FileInfo {
 
 // Get channel for notifications on changes to the folder
 func (f *folder) Watch() chan bool {
+	f.m.Lock()
+	if f.count == 0 {
+		go f.fsWatcher()
+	}
+	f.m.Unlock()
 	w := make(chan bool)
 	f.watchers = append(f.watchers, w)
 	f.count++
@@ -101,11 +105,14 @@ func (f *folder) closeWatchers() {
 }
 
 func (f *folder) fsWatcher() {
+	fmt.Println("making a watcher")
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		fmt.Println("error:", err)
 		return
 	}
+
+	f.Refresh() //have the latest data before starting to delta over it with the watcher
 
 	defer watcher.Close()
 	defer f.closeWatchers()

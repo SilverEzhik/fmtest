@@ -1,1 +1,83 @@
 package main
+
+import (
+	//"./fm"
+	//"./fs"
+	//"encoding/json"
+	"fmt"
+	"github.com/desertbit/glue"
+	"github.com/gorilla/mux"
+	"log"
+	"net/http"
+)
+
+func getDir(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("get dir")
+	vars := mux.Vars(r)
+	pathId := vars["path"]
+	var path string
+
+	if len(pathId) == 0 {
+		path = "/"
+	} else if string(pathId[0]) == "~" {
+		path = pathId
+	} else {
+		path = "/" + pathId
+	}
+
+	fmt.Fprintln(w, "show:", path)
+	fmt.Println(path)
+}
+
+// main function to boot up everything
+func main() {
+	router := mux.NewRouter()
+
+	//read files
+	router.HandleFunc(`/api/open/{path:.*}`, getDir).Methods("GET")
+
+	//notify api
+	// Create a new glue server.
+	server := glue.NewServer(glue.Options{
+		HTTPListenAddress: ":8080",
+		HTTPSocketType:    glue.HTTPSocketTypeNone,
+		HTTPHandleURL:     "/channel/",
+	})
+
+	// Release the glue server on defer.
+	// This will block new incoming connections
+	// and close all current active sockets.
+	defer server.Release()
+
+	// Set the glue event function to handle new incoming socket connections.
+	server.OnNewSocket(onNewSocket)
+
+	// Run the glue server.
+	go server.Run()
+
+	router.PathPrefix("/channel/").Handler(server)
+
+	//serve static
+	staticFileDirectory := http.Dir("./millertoy_html/")
+	staticFileHandler := http.StripPrefix("/", http.FileServer(staticFileDirectory))
+	router.PathPrefix("/").Handler(staticFileHandler).Methods("GET")
+
+	log.Fatal(http.ListenAndServe(":8080", router))
+}
+
+func onNewSocket(s *glue.Socket) {
+	// Set a function which is triggered as soon as the socket is closed.
+	s.OnClose(func() {
+		log.Printf("socket closed with remote address: %s", s.RemoteAddr())
+	})
+
+	// Set a function which is triggered during each received message.
+	s.OnRead(func(data string) {
+		// Echo the received data back to the client.
+		s.Write(data)
+	})
+
+	// Send a welcome string to the client.
+	s.Write("Hello Client")
+	log.Println("Channel pinged")
+}
