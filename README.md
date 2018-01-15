@@ -19,3 +19,5 @@ UI layer will be what the user actually sees. This one will be platform-dependen
 ## Current contents
 
 Right now, I have implemented a piece of the FS model for watching folders - channels for getting updates and etc. There are two test Go programs in there, `fmtest`, which accepts folders as arguments and prints their contents when a change is detected. The second is `millertoy`, which lets you browse your file system in the browser - it's absolutely minimal and will not be used as a base for the UI, as I want it to be native.
+
+![millertoy screenshot](https://i.imgur.com/DEdVYKg.png)
