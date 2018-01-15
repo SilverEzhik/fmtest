@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"io/ioutil"
-	"log"
+	//"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -34,10 +34,12 @@ var folders mutexFolders = mutexFolders{f: make(map[string]*folder)}
 
 //get the folder struct
 func GetFolder(path string) (*folder, error) {
+	fmt.Println(path)
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(absPath)
 	folders.m.Lock()
 	defer folders.m.Unlock()
 
@@ -46,7 +48,10 @@ func GetFolder(path string) (*folder, error) {
 		return f, nil
 	} else {
 		f := &folder{path: absPath}
-		f.Refresh()
+		err := f.Refresh()
+		if err != nil {
+			return nil, err
+		}
 		f.done = make(chan struct{})
 		//f.watchers = make([]chan bool)
 
@@ -64,6 +69,10 @@ func (f *folder) Path() string {
 
 // Get folder contents
 func (f *folder) Contents() map[string]os.FileInfo {
+	//if folder not being watched, refresh it
+	if f.count == 0 {
+		f.Refresh()
+	}
 	f.m.Lock()
 	defer f.m.Unlock()
 
@@ -235,7 +244,7 @@ func (f *folder) cleanup() {
 // Get initial folder contents from file system
 // Might be nice to have a mechanism that would just go ahead and refresh if
 // many update/remove events are queued.
-func (f *folder) Refresh() {
+func (f *folder) Refresh() error {
 	f.m.Lock()
 	defer f.m.Unlock()
 	// replace the map
@@ -243,7 +252,7 @@ func (f *folder) Refresh() {
 
 	files, err := ioutil.ReadDir(f.path)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	for _, file := range files {
@@ -252,6 +261,7 @@ func (f *folder) Refresh() {
 	}
 
 	f.uid = getPathUID(f.path)
+	return nil
 }
 
 //unix only

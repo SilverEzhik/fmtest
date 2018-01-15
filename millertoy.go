@@ -3,7 +3,7 @@ package main
 import (
 	"./fm"
 	"./fs"
-	//"encoding/json"
+	"encoding/json"
 	"fmt"
 	"github.com/desertbit/glue"
 	"github.com/gorilla/mux"
@@ -25,8 +25,34 @@ func getDir(w http.ResponseWriter, r *http.Request) {
 		path = "/" + pathId
 	}
 
-	fmt.Fprintln(w, "show:", path)
-	fmt.Println(path)
+	fmt.Println("path:\"" + path + "\"")
+
+	a := JSONFolder{Path: path, Contents: make([]string, 0)}
+
+	var f fm.Folder
+	f, err := fs.GetFolder(path)
+	if err != nil {
+		fmt.Println("error:", err)
+		a.Error = err
+	} else {
+		ff := f.Contents()
+
+		for _, n := range ff {
+			fmt.Print("\"" + n.Name() + "\", ")
+			a.Contents = append(a.Contents, n.Name())
+		}
+	}
+
+	jsonFiles, err := json.Marshal(a)
+	fmt.Fprintln(w, string(jsonFiles))
+	fmt.Println(string(jsonFiles))
+	fmt.Println(path, len(a.Contents))
+}
+
+type JSONFolder struct {
+	Path     string   `json:"path"`
+	Contents []string `json:"files"`
+	Error    error    `json:"error"`
 }
 
 func watchFolder(path string) {
