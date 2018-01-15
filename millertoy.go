@@ -35,12 +35,7 @@ func getDir(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("error:", err)
 		a.Error = err
 	} else {
-		ff := f.Contents()
-
-		for _, n := range ff {
-			fmt.Print("\"" + n.Name() + "\", ")
-			a.Contents = append(a.Contents, n.Name())
-		}
+		a.Contents = fm.GetSortedFileList(f)
 	}
 
 	jsonFiles, err := json.Marshal(a)
@@ -51,7 +46,7 @@ func getDir(w http.ResponseWriter, r *http.Request) {
 
 type JSONFolder struct {
 	Path     string   `json:"path"`
-	Contents []string `json:"files"`
+	Contents []string `json:"contents"`
 	Error    error    `json:"error"`
 }
 

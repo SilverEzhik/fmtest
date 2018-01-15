@@ -1,21 +1,51 @@
-function Folder(name) {
+function Folder(path) {
+    this.path = path;
+    var n = path.lastIndexOf('/');
+    name = path;
+    if (n > 0) {
+        name = name.substring(n + 1);
+    }
     this.name = name;
-    this.content = []; 
-    //would want an uid
-}
+    console.log(this.path)
 
-//fake root to test
-var root = new Folder("root");
-for (var i = 0; i < 20; i++) {
-    root.content[i] = new Folder("child " + i);
-    for (var j = 0; j < 10; j++) {
-        root.content[i].content[j] = new Folder("subchild " + j);
-        for (var k = 0; k < 5; k++) {
-            root.content[i].content[j].content[k] = new Folder("subsubchild " + k);
-            root.content[i].content[j].content[k].content[0] = new Folder("subsubsubchild 1");
+
+    //would want an uid of some sorts too
+    this.Contents = function() {
+        var request = new XMLHttpRequest();
+        request.open('GET', 'api/open/' + this.path, false);  // `false` makes the request synchronous
+        request.send(null);
+
+        if (request.status === 200) {
+            console.log(request.responseText);
+            f = JSON.parse(request.responseText);
+            if (f.error != null) {
+                return []; //emptry
+            } else {
+                arr = [];
+                for (var i = 0; i < f.contents.length; i++) {
+                    arr[i] = new Folder(this.path + "/" + f.contents[i])               
+                }
+                return arr;
+            }
         }
     }
 }
+
+/*
+//fake root to test
+var root = new Folder("root");
+
+for (var i = 0; i < 20; i++) {
+    root.contents[i] = new Folder("child " + i);
+    for (var j = 0; j < 10; j++) {
+        root.contents[i].contents[j] = new Folder("subchild " + j);
+        for (var k = 0; k < 5; k++) {
+            root.contents[i].contents[j].contents[k] = new Folder("subsubchild " + k);
+            root.contents[i].contents[j].contents[k].contents[0] = new Folder("subsubsubchild 1");
+        }
+    }
+}
+*/
 
 function Column(folder) {
     this.folder = folder
@@ -24,7 +54,6 @@ function Column(folder) {
 }
 
 var columns = [];
-columns[0] = new Column(root);
 
 
 function makeHTMLColumn(column) {
@@ -35,21 +64,24 @@ function makeHTMLColumn(column) {
     col.appendChild(title);
     col.id = column.folder.name;
     col.className = "miller-column";
-    if (column.folder.content.length == 0) {
+    files = column.folder.Contents();
+    if (files.length == 0) {
         var item = document.createElement("p");
         item.appendChild(document.createTextNode("Empty"));
         col.appendChild(item);
     } else {
         var list = col.appendChild(document.createElement("ul"));
-        for (var i = 0; i < column.folder.content.length; i++) {
-            var folder = column.folder.content[i];
-            var item = document.createElement("li");
-            item.appendChild(document.createTextNode(folder.name));
-            item.onclick = (function() {
-                var folder = column.folder.content[i]; 
-                return function() {clickColumn(column, folder);}
-            })();
-            list.appendChild(item);
+        for (var i = 0; i < files.length; i++) {
+            var folder = files[i];
+            if (files[i].name[0] != ".") {
+                var item = document.createElement("li");
+                item.appendChild(document.createTextNode(folder.name));
+                item.onclick = (function() {
+                    var folder = files[i]; 
+                    return function() {clickColumn(column, folder);}
+                })();
+                list.appendChild(item);
+            }
         }
     }
     return col
@@ -76,7 +108,21 @@ function clickColumn(column, folder) {
     columns[index + 1] = new Column(folder);
     appendColumn(columns[index + 1]);
 }
+function getFolder(path) {
+    console.log(path)
+    var request = new XMLHttpRequest();
+    request.open('GET', 'api/open/' + path, false);  // `false` makes the request synchronous
+    request.send(null);
+
+    if (request.status === 200) {
+        console.log(request.responseText);
+        f = JSON.parse(request.responseText)
+        r = new Folder(path)
+        return r
+    }
+}
 
 
+
+columns[0] = new Column(getFolder("/"));
 appendColumn(columns[0]);
-

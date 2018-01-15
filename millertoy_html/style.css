@@ -7,6 +7,9 @@ body {
 .miller-column {
     min-width: 200px;
     width: 200px;
+    max-width: 200px;
+    word-wrap: break-word;
+    padding: 10px;
 }
 .miller-column:nth-child(odd) {
     background-color: #f0f0f0;
