@@ -64,7 +64,16 @@ func (f *folder) Path() string {
 
 // Get folder contents
 func (f *folder) Contents() map[string]os.FileInfo {
-	return f.contents
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	m := make(map[string]os.FileInfo)
+
+	for fileName, fileInfo := range f.contents {
+		m[fileName] = fileInfo
+	}
+
+	return m
 }
 
 // Get channel for notifications on changes to the folder

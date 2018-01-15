@@ -27,6 +27,10 @@ func main() {
 		}
 	*/
 
+	for _, arg := range os.Args[2:] {
+		go watchFolder(arg)
+	}
+
 	watchFolder(os.Args[1])
 
 	fmt.Println("no folders")
