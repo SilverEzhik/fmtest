@@ -56,11 +56,19 @@ func watchFolder(path string) {
 					path = f.Path()
 				}
 				jsonMsg, _ := json.Marshal(message)
-				broadcast(string(jsonMsg))
+				broadcast("update: " + string(jsonMsg))
 			}
 		}
 	}
 }
+
+type JSONUpdate struct {
+	Path     string   `json:"path"`
+	NewPath  string   `json:"newPath"`
+	Deleted  bool     `json:"deleted"`
+	Contents []string `json:"contents"`
+}
+
 func closeDir(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("close dir")
 	vars := mux.Vars(r)
@@ -114,13 +122,6 @@ func getDir(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(jsonFiles))
 	fmt.Println(string(jsonFiles))
 	fmt.Println(path, len(a.Contents))
-}
-
-type JSONUpdate struct {
-	Path     string   `json:"path"`
-	NewPath  string   `json:"newPath"`
-	Deleted  bool     `json:"deleted"`
-	Contents []string `json:"contents"`
 }
 
 type JSONFolder struct {

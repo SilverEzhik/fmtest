@@ -1,12 +1,14 @@
 function Folder(path) {
     this.path = path;
-    var n = path.lastIndexOf('/');
-    name = path;
-    if (n != -1 && path != "/") {
-        name = name.substring(n + 1);
-    }
-    this.name = name;
-    console.log(this.path)
+    this.name = function() {
+        var n = path.lastIndexOf('/');
+        name = path;
+        if (n != -1 && path != "/") {
+            name = name.substring(n + 1);
+        }
+        return name;
+    };
+    console.log(this.path);
 
 
     //would want an uid of some sorts too
@@ -50,15 +52,18 @@ function Column(folder) {
 var columns = [];
 
 
-function makeHTMLColumn(column, array) {
+function makeHTMLColumn(column, files) {
     var col = document.createElement("div");
     column.HTMLElement = col;
     var title = document.createElement("b");
-    title.appendChild(document.createTextNode(column.folder.name));
+    title.appendChild(document.createTextNode(column.folder.name()));
     col.appendChild(title);
-    col.id = column.folder.name;
+    col.id = column.folder.name();
     col.className = "miller-column";
-    files = column.folder.Contents();
+    if (files == undefined) {
+        console.log("no folder given");
+        files = column.folder.Contents();
+    } 
     if (files.length == 0) {
         var item = document.createElement("p");
         item.appendChild(document.createTextNode("Empty"));
@@ -97,16 +102,23 @@ function markActive(column) {
 
 function clickColumn(column, name) {
     column.active = name;
-    markActive(column)
-    index = columns.indexOf(column);
-    for (var i = index + 1; i < columns.length; i++) {
-        document.getElementById("miller-container").removeChild(columns[i].HTMLElement);
-    }
-        
-    columns.length = index + 1;
+    markActive(column);
+    closeColumnsAfter(column);
     columns[index + 1] = new Column(getFolder(getClickedFolder(column, name))); //so this is the javascript power...
     appendColumn(columns[index + 1]);
 }
+
+function closeColumnsAfter(column) {
+    index = columns.indexOf(column);
+    for (var i = index + 1; i < columns.length; i++) {
+        document.getElementById("miller-container").removeChild(columns[i].HTMLElement);
+        var request = new XMLHttpRequest();
+        request.open('GET', 'api/close/' + columns[i].folder.path);  // `false` makes the request synchronous
+        request.send(null);
+    }
+    columns.length = index + 1;
+}
+
 function getFolder(path) {
     console.log(path)
     var request = new XMLHttpRequest();
@@ -127,11 +139,32 @@ columns[0] = new Column(getFolder("/"));
 appendColumn(columns[0]);
 
 function refreshFolder(data) {
+    console.log("update column: " + data);
     f = JSON.parse(data);
     if (f.error != null) {
         return; //emptry
-    } else {
+    } 
+    
+    var column = null;
+    for (var i = 0; i < columns.length; i++) {
+        if (columns[i].folder.path == f.path) { 
+            column = columns[i];
+            break;
+        }
     }
+    if (columns == null) {
+        console.log("don't need this update");
+        return;
+    }
+
+    if (f.newPath != "") {
+        column.folder.path = f.newPath;
+        closeColumnsAfter(column);
+    }
+    
+    oldHTMLElement = column.HTMLElement;
+    newHTMLElement = makeHTMLColumn(column, f.contents);
+    document.getElementById("miller-container").replaceChild(newHTMLElement, oldHTMLElement);
 }
 
 var host = "http://localhost:8080";
@@ -170,6 +203,11 @@ var socket = glue(host, opts);
 socket.onMessage(function(data) {
     console.log("onMessage: " + data);
 
+    console.log(data.substr(0, 7))
+    if (data.substr(0, 8) == "update: ") {
+        refreshFolder(data.substring(8))
+    }
+
     if (data == "Folder update") {
         // https://zeit.co/blog/async-and-await
         function sleep (time) {
@@ -182,7 +220,6 @@ socket.onMessage(function(data) {
             // Do something after the sleep!
         })
     }
-    refreshFolder(data)
 
     // Echo the message back to the server.
     //socket.send("echo: " + data);
