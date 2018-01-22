@@ -48,23 +48,29 @@ func watchFolder(path string) {
 
 	update := f.Watch()
 
-Loop:
+	queue := false
 	for {
 		select {
 		case <-update:
 			if f.Path() == "" && f.Contents() == nil {
 				fmt.Println("folder object gone")
-				break Loop
+				break
 			}
-			PrintFolder(f)
 
-			//weird mechanism for testing this
-			for file := range f.Contents() {
-				if file == "close" {
-					f.Close()
-					break Loop
+			// It doesn't do much good to update on every single event, especially since
+			// removing many files, for example, will send out individual events.
+			// So we limit to only updating every 100 ms.
+			// At the same time, this should be done on the UI layer, because different apps
+			// might want different rate limits and such.
+			go func() {
+				if queue == false {
+					queue = true
+					go PrintFolder(f)
+					time.Sleep(100 * time.Millisecond)
+					queue = false
 				}
-			}
+			}()
+
 		}
 	}
 }

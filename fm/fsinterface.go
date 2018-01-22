@@ -1,8 +1,7 @@
 package fm
 
 import (
-	"os"
-	//"time"
+	"time"
 )
 
 // Define an interface for file system operations that'd be nice to support.
@@ -18,7 +17,7 @@ import (
 type FileSystem interface {
 	// FS navigation tools
 	GetFolder(path string) Folder
-	GetFileInfo(path string) os.FileInfo
+	GetFile(path string) File
 	// Only bother with basic features that FileInfo gives
 	// (name/size/last modify date/permissions)
 	// May also want to provide some sort of a "preferred order" mechanism
@@ -85,8 +84,8 @@ type FileSystem interface {
 	// The FM UI layer would not care about what functions to call, and would always just use the
 	// generic Copy, Move, Open, Preview, etc. functions, which will then make the necessary calls.
 
-	Download(filename string) //returns some Reader
-	Upload(filename string)   //returns some Writer
+	//Download(filename string) //returns some Reader
+	//Upload(filename string)   //returns some Writer
 	// These also need to return the relevant IOStatus and OPStatus channels to pause the operation.
 	// up to FM to do conflict resolution, this should always overwrite and so on, only error in case
 	// of permission denial and such.
@@ -120,7 +119,7 @@ const (
 // for FM use, folders are more "interesting" until we get to actually changing the file system
 type Folder interface {
 	Path() string
-	Contents() map[string]os.FileInfo
+	Contents() map[string]File
 	// Contents is a map so that it's possible to quickly add/remove content based on filename
 	// This does, however, mean that you can't have multiple files with the same name in one folder.
 	// A different mechanism may be good to have here, however, issue can be dealt with by always calling
@@ -135,3 +134,25 @@ type Folder interface {
 // virtual file systems and network fs can be added
 
 // so if any of these get called on the UI thread I'll get sad.
+
+// The file interface is a simpler version of the os.FileInfo interface.
+// File permissions are an interesting story, and standard UNIX-style permissions are
+// not flexible enough for things like cloud fs or other OS support, so I'm not sure
+// what the best generic approach here would be - if there can even be one.
+// Personally, I do not manage permissions via the file manager all that often, so
+// I could just leave it out completely.
+type File interface {
+	Name() string
+	Size() int64
+	ModTime() time.Time
+	IsDir() bool
+}
+
+// For file permissions and per-FS settings, I could provide some simple building blocks
+// that could allow file systems to provide simple UIs for managing those - I will need
+// to have this exist in some form either way for handling things like authentication,
+// for example. Cover a few basics - enough to flip some switches for the FS config and
+// basic permission handling. Could also straight up allow web views for authentication
+// and dealing with the complicated world of cloud sharing.
+
+// Remember, this is all for a GUI-based file manager platform.

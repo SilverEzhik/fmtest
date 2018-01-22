@@ -5,6 +5,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"io/ioutil"
 	//"log"
+	"../fm"
 	"os"
 	"path/filepath"
 	"sync"
@@ -68,7 +69,7 @@ func (f *folder) Path() string {
 }
 
 // Get folder contents
-func (f *folder) Contents() map[string]os.FileInfo {
+func (f *folder) Contents() map[string]fm.File {
 	//if folder not being watched, refresh it
 	if f.count == 0 {
 		f.Refresh()
@@ -76,7 +77,7 @@ func (f *folder) Contents() map[string]os.FileInfo {
 	f.m.Lock()
 	defer f.m.Unlock()
 
-	m := make(map[string]os.FileInfo)
+	m := make(map[string]fm.File)
 
 	for fileName, fileInfo := range f.contents {
 		m[fileName] = fileInfo
@@ -172,6 +173,7 @@ func (f *folder) fsWatcher() {
 					f.removeItem(event.Name)
 				}
 				f.notifyWatchers()
+				//fmt.Println("(w): "+event.Name+" - ", event)
 			} else if event.Name == f.path && event.Op == fsnotify.Rename {
 				folderRenamed = true
 
