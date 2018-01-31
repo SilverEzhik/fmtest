@@ -16,8 +16,8 @@ import (
 
 type FileSystem interface {
 	// FS navigation tools
-	GetFolder(path string) Folder
-	GetFile(path string) File
+	GetFolder(path string) (Folder, error)
+	GetFile(path string) (File, error)
 	// Only bother with basic features that FileInfo gives
 	// (name/size/last modify date/permissions)
 	// May also want to provide some sort of a "preferred order" mechanism
@@ -108,10 +108,11 @@ type IOStatus struct {
 type OPStatus int
 
 const (
-	Resume OPStatus = iota
+	Ongoing OPStatus = iota
 	Pause
 	Cancel
 	Fail
+	Complete
 )
 
 // conflict resolution falls to the FM.

@@ -161,19 +161,19 @@ func (f *folder) fsWatcher() {
 				//create or modify - update map
 				case fsnotify.Create:
 					fallthrough
-				case fsnotify.Rename:
-					fallthrough
 				case fsnotify.Chmod:
 					fallthrough
 				case fsnotify.Write:
 					f.updateItem(event.Name)
 
 				//deletion - remove from map
+				case fsnotify.Rename:
+					fallthrough
 				case fsnotify.Remove:
 					f.removeItem(event.Name)
 				}
 				f.notifyWatchers()
-				//fmt.Println("(w): "+event.Name+" - ", event)
+				fmt.Println("(w): "+event.Name+" - ", event)
 			} else if event.Name == f.path && event.Op == fsnotify.Rename {
 				folderRenamed = true
 
@@ -287,7 +287,7 @@ func (f *folder) updateItem(path string) {
 	file, err := os.Stat(path)
 
 	if err != nil {
-		fmt.Println("error:", err)
+		fmt.Println("(u) error:", err)
 		return
 	}
 	f.contents[filepath.Base(path)] = file
