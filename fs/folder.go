@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -174,7 +173,7 @@ func (f *folder) fsWatcher() {
 				}
 				f.notifyWatchers()
 				fmt.Println("(w): "+event.Name+" - ", event)
-			} else if event.Name == f.path && event.Op == fsnotify.Rename {
+			} else if event.Name == f.path && (event.Op == fsnotify.Rename || event.Op == fsnotify.Remove) {
 				folderRenamed = true
 
 				//this is... quite a thing to do.
@@ -202,8 +201,9 @@ func (f *folder) fsWatcher() {
 				//stop watching old path
 				err = watcher.Remove(f.path)
 				if err != nil {
-					fmt.Println("error:", err)
-					return
+					// non-fatal, i think?
+					//fmt.Println("(rw) error:", err)
+					//return
 				}
 
 				// move folder to the new path in the map
@@ -217,7 +217,7 @@ func (f *folder) fsWatcher() {
 				//start watching new path
 				err = watcher.Add(f.path)
 				if err != nil {
-					fmt.Println("error:", err)
+					fmt.Println("(w) error:", err)
 					return
 				}
 
@@ -226,7 +226,7 @@ func (f *folder) fsWatcher() {
 
 			//fmt.Println(f.path, "(w) -", event.Name, event.Op)
 		case err := <-watcher.Errors:
-			fmt.Println("error:", err)
+			fmt.Println("(w) error:", err)
 		case <-f.done:
 			fmt.Println("watcher over")
 			return
@@ -254,6 +254,7 @@ func (f *folder) Refresh() error {
 
 	files, err := ioutil.ReadDir(f.path)
 	if err != nil {
+		fmt.Println("(r) error:", err)
 		return err
 	}
 
@@ -264,19 +265,6 @@ func (f *folder) Refresh() error {
 
 	f.uid = getPathUID(f.path)
 	return nil
-}
-
-//unix only
-//figure out a drop-in uid function for other os?
-func getPathUID(path string) uint64 {
-	fileinfo, _ := os.Stat(path)
-	stat, ok := fileinfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		// 0 in inodes indicates an error, so...
-		return 0
-	}
-
-	return stat.Ino
 }
 
 // Takes an absolute path to file and stats it

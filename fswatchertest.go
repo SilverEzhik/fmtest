@@ -51,10 +51,10 @@ func watchFolder(path string) {
 	queue := false
 	for {
 		select {
-		case <-update:
-			if f.Path() == "" && f.Contents() == nil {
+		case _, ok := <-update:
+			if !ok {
 				fmt.Println("folder object gone")
-				break
+				return
 			}
 
 			// It doesn't do much good to update on every single event, especially since
