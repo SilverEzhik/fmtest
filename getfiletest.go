@@ -22,7 +22,7 @@ func PrintFile(f fm.File) {
 }
 
 func main() {
-	f, err := fs.GetFile(os.Args[1])
+	f, err := fs.Stat(os.Args[1])
 	if err != nil {
 		fmt.Println("error:", err)
 		return
